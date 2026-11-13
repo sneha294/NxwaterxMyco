@@ -1,6 +1,6 @@
 setwd("~/Library/CloudStorage/OneDrive-TexasTechUniversity/Experiment I/Experiment_I/Carbon_nitrogen_analysis/Carbon_nitrogen_analysis")
 
-# This file can be opened and anlysed from Snehanjana's one drive
+# This file can be opened and analysed from Snehanjana's one drive
 
 # Loading all the packages
 library(dplyr)
@@ -12,6 +12,7 @@ library(lme4)
 library(ggplot2)
 library(ggpubr)
 library(ggsignif)
+library(cowplot)
 
 
 # Reading excel sheet data
@@ -35,6 +36,17 @@ merge_costech <- merge_costech %>%
   mutate(Whole_plant_nitrogen_biomass = `Total Leaf nitrogen biomass`+ `Total Root nitrogen biomass`+ `Total stem nitrogen biomass`,
          Carbon_cost_to_acquire_nutrients = Total_root_carbon_biomass/ Whole_plant_nitrogen_biomass)
 
+merge_costech <- merge_costech |>
+  mutate(Water_treatment = factor(Water_treatment,
+                                  levels = c("High water supply", "Low water supply")),
+         Nutrient_treatment = factor(Nutrient_treatment,
+                                     levels = c("High Nitrogen", "Low Nitrogen")),
+         AMF = factor(AMF, levels = c("No", "Yes")))
+
+# confirm no NAs were introduced by a spelling mismatch
+summary(merge_costech[c("Water_treatment", "Nutrient_treatment", "AMF")])
+
+
 # merge_costech <- merge_costech %>% filter(Total_root_carbon_biomass < 150)
 
 # Dry leaf weight
@@ -45,20 +57,13 @@ summary(DLW_lmer)
 hist(residuals(DLW_lmer))
 shapiro.test(residuals(DLW_lmer))
 
+emmeans(DLW_lmer, pairwise ~ Nutrient_treatment, adjust = "tukey")
+
+emmeans(DLW_lmer, pairwise ~ Nutrient_treatment * Water_treatment * AMF, adjust = "tukey")
+
+
 em_DLW <- as.data.frame(emmeans(DLW_lmer, ~AMF * Nutrient_treatment * Water_treatment)) 
 
-
-Treatment_DLW <- ggplot(merge_costech, aes(y = `Dry Leaf weight (g)`, x = AMF , color = AMF)) + geom_jitter(width = 0.2, size = 2, alpha = 0.8)  +
-  geom_point(data = em_DLW, aes(y = emmean, x = AMF), 
-             shape = 18, size = 3, color = "black", inherit.aes = FALSE) +
-  geom_errorbar(data = em_DLW, aes(x = AMF, y = emmean,ymin = emmean - SE, ymax = emmean + SE),  width = 0.15, color = "black", alpha = 0.6, inherit.aes = FALSE) +  
-  scale_color_manual(values = c("red", "dodgerblue")) +  
-  labs(x = "AMF Presence/Absence", 
-       y = "Dry leaf weight (g)") +
-  facet_grid(Water_treatment ~ Nutrient_treatment,  
-             labeller = labeller(Water_treatment = c("Well watered" = "Well Watered", "Drought" = "Drought Condition"),Nutrient_treatment = c("Low nitrogen" = "Low N",  "High nitrogen" = "High N"))) +  theme_bw(base_size = 17)  
-
-ggsave("Treatment_DLW.jpg", width = 10, height = 7, units = "in", dpi = 600)
 
 # Root carbon biomass
 
@@ -71,34 +76,12 @@ shapiro.test(residuals(Root_lmer))
 
 plot(Root_lmer)
 
-emmeans(Root_lmer, pairwise ~ Water_treatment * Nutrient_treatment, adjust = "tukey")
-
-emmeans(Root_lmer, pairwise ~ AMF * Nutrient_treatment, adjust = "tukey")
-
 emmeans(Root_lmer, pairwise ~ Nutrient_treatment, adjust = "tukey")
-emmeans(Root_lmer, pairwise ~ AMF, adjust = "tukey")
-
-
-ggplot(merge_costech, aes(y = Total_root_carbon_biomass , x = Nutrient_treatment , color = AMF))+ geom_boxplot()
 
 #ggplot 
 
 em_Root <- as.data.frame(emmeans(Root_lmer, ~ AMF * Nutrient_treatment * Water_treatment), type = "response")
 
-
-Treatment_Root <- ggplot(merge_costech, aes(y = Total_root_carbon_biomass, x = AMF , color = AMF)) + 
-  geom_jitter(width = 0.2, size = 2, alpha = 0.8)  +
-  geom_point(data = em_Root, aes(y = response , x = AMF), 
-             shape = 18, size = 3, color = "black", inherit.aes = FALSE) +
-  geom_errorbar(data = em_Root, aes(x = AMF, y = response, ymin = response - SE, ymax = response + SE),  width = 0.15, color = "black", alpha = 0.6, inherit.aes = FALSE) +  
-  scale_color_manual(values = c("red", "dodgerblue")) +  
-  labs(x = "AMF Presence/Absence", 
-       y = "Total root carbon biomass (gC)") +
-  facet_grid(Water_treatment ~ Nutrient_treatment,  
-             labeller = labeller(Water_treatment = c("Well watered" = "Well Watered", "Drought" = "Drought Condition"),Nutrient_treatment = c("Low nitrogen" = "Low N",  "High nitrogen" = "High N"))) +  
-  theme_bw(base_size = 17)  
-
-ggsave("Treatment_Root.jpg", width = 10, height = 7, units = "in", dpi = 600)
 
 # Whole plant nitrogen biomass
 
@@ -112,38 +95,111 @@ shapiro.test(residuals(WPN_lmer))
 
 plot(WPN_lmer)
 
-emmeans(WPN_lmer, pairwise ~ Water_treatment * Nutrient_treatment, adjust = "tukey")
 
 emmeans(WPN_lmer, pairwise ~ AMF * Nutrient_treatment, adjust = "tukey")
-
-emmeans(WPN_lmer, pairwise ~ Water_treatment * AMF, adjust = "tukey")
 
 emmeans(WPN_lmer, pairwise ~ Water_treatment * Nutrient_treatment * AMF, adjust = "tukey")
 
 emmeans(WPN_lmer, pairwise ~ Nutrient_treatment, adjust = "tukey")
 emmeans(WPN_lmer, pairwise ~ AMF, adjust = "tukey")
-emmeans(WPN_lmer, pairwise ~ Water_treatment, adjust = "tukey")
 
-
-ggplot(merge_costech, aes(y = Whole_plant_nitrogen_biomass , x = Nutrient_treatment , color = AMF))+ geom_boxplot()
-
-
-#ggplot 
 
 em_WPN <- as.data.frame(emmeans(WPN_lmer, ~AMF * Nutrient_treatment * Water_treatment)) 
 
 
-Treatment_WPN <- ggplot(merge_costech, aes(y = Whole_plant_nitrogen_biomass, x = AMF , color = AMF)) + geom_jitter(width = 0.2, size = 2, alpha = 0.8)  +
-  geom_point(data = em_WPN, aes(y = emmean, x = AMF), 
-             shape = 18, size = 3, color = "black", inherit.aes = FALSE) +
-  geom_errorbar(data = em_WPN, aes(x = AMF, y = emmean,ymin = emmean - SE, ymax = emmean + SE),  width = 0.15, color = "black", alpha = 0.6, inherit.aes = FALSE) +  
-  scale_color_manual(values = c("red", "dodgerblue")) +  
-  labs(x = "AMF Presence/Absence", 
-       y = "Whole plant nitrogen biomass (gN)") +
-  facet_grid(Water_treatment ~ Nutrient_treatment,  
-             labeller = labeller(Water_treatment = c("Well watered" = "Well Watered", "Drought" = "Drought Condition"),Nutrient_treatment = c("Low nitrogen" = "Low N",  "High nitrogen" = "High N"))) +  theme_bw(base_size = 17)  
+# NEW PLOTS, SAME RESULTS
 
-ggsave("Treatment_WPN.jpg", width = 10, height = 7, units = "in", dpi = 600)
+
+recode_trt <- function(d) {
+  d %>% mutate(
+    Water_treatment = recode(Water_treatment,
+                             "Drought" = "Low water supply",
+                             "Well watered" = "High water supply"),
+    Nutrient_treatment = recode(Nutrient_treatment,
+                                "High nitrogen" = "High Nitrogen",
+                                "Low nitrogen"  = "Low Nitrogen",
+                                "High" = "High Nitrogen",
+                                "Low"  = "Low Nitrogen"))
+}
+
+plot_trt <- function(em, raw, yvar, model, ylab, from_zero = TRUE) {
+  if (!all(c("lo", "hi") %in% names(em))) {
+    em <- em %>% mutate(lo = emmean - SE, hi = emmean + SE)
+  }
+  p <- ggplot(em, aes(Water_treatment, emmean, color = AMF)) +
+    geom_point(data = raw, aes(y = .data[[yvar]]),
+               size = 2.5, alpha = 0.3, position = jdodge) +
+    geom_errorbar(aes(ymin = lo, ymax = hi),
+                  width = 0.2, linewidth = 1, position = dodge) +
+    geom_point(shape = 15, size = 5, position = dodge) +
+    geom_text(data = tibble(Nutrient_treatment = "Low Nitrogen", label = sig_label(model)),
+              aes(x = Inf, y = Inf, label = label), inherit.aes = FALSE,
+              hjust = 1.05, vjust = 1.2, size = 4, lineheight = 0.9) +
+    scale_color_manual(values = c(No = "#D55E00", Yes = "#009E73"),
+                       labels = c(No = "AMF absent", Yes = "AMF present")) +
+    scale_x_discrete(limits = c("Low water supply", "High water supply"),
+                     labels = c("Low water\nsupply", "High water\nsupply")) +
+    facet_wrap(~ Nutrient_treatment) +
+    labs(x = NULL, y = ylab) +
+    theme_classic(base_size = 14) +
+    theme(legend.title = element_blank(),
+          legend.position = "top",
+          strip.background = element_blank(),
+          strip.text = element_text(size = 14))
+  
+  if (from_zero) {
+    p + scale_y_continuous(expand = expansion(mult = c(0, 0.2))) + expand_limits(y = 0)
+  } else {
+    p + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+  }
+}
+
+# Back-transform a sqrt-scale model
+sqrt_em <- function(model) {
+  as.data.frame(emmeans(model, ~ AMF * Nutrient_treatment * Water_treatment)) %>%
+    mutate(lo = pmax(emmean - SE, 0)^2,
+           hi = (emmean + SE)^2,
+           emmean = emmean^2)
+}
+
+#  emmeans 
+em_WPN  <- as.data.frame(emmeans(WPN_lmer, ~ AMF * Nutrient_treatment * Water_treatment)) %>%
+  recode_trt()
+em_Root <- sqrt_em(Root_lmer) %>% recode_trt()
+em_tran <- sqrt_em(Tran_lmer) %>% recode_trt()
+
+costech_raw <- merge_costech %>% recode_trt()
+tran_raw    <- Transpiration %>% recode_trt()
+
+#  Plots
+p_WPN <- plot_trt(em_WPN, costech_raw, "Whole_plant_nitrogen_biomass", WPN_lmer,
+                  expression(atop(displaystyle("Whole-plant biomass"),
+                                  displaystyle("nitrogen (gN)"))))
+
+p_Root <- plot_trt(em_Root, costech_raw, "Total_root_carbon_biomass", Root_lmer,
+                   expression(atop(displaystyle("Root biomass"),
+                                   displaystyle("carbon (gC)"))))
+
+p_tran <- plot_trt(em_tran, tran_raw, "Cumulative_transpiration_rate", Tran_lmer,
+                   expression(atop(displaystyle("Whole-plant"),
+                                   displaystyle("transpiration (g Water)"))))
+
+#  a & b
+fig_NC <- make_fig(p_WPN, p_Root, c("a", "b"))
+fig_NC
+ggsave("Figure_N_rootC_ExpI.png", fig_NC, width = 8, height = 9, dpi = 600)
+
+# c
+fig_tran <- p_tran +
+  labs(tag = "c") +
+  force_panelsizes(cols = unit(2.6, "in"), rows = unit(2.6, "in")) +
+  theme(plot.tag = element_text(size = 14))
+fig_tran
+ggsave("Figure_transpiration_ExpI.png", fig_tran, width = 8, height = 4.6, dpi = 600)
+
+
+
+
 
 
 # Model for carbon cost to acquire and use nutrients
@@ -157,98 +213,91 @@ shapiro.test(residuals(CC_lmer))
 
 plot(CC_lmer)
 
-emmeans(CC_lmer, pairwise ~ Water_treatment * Nutrient_treatment, adjust = "tukey")
-
-emmeans(CC_lmer, pairwise ~ AMF * Nutrient_treatment, adjust = "tukey")
 emmeans(CC_lmer, pairwise ~ AMF, adjust = "tukey")
-
-emmeans(CC_lmer, pairwise ~ Water_treatment * AMF * Nutrient_treatment, adjust = "tukey")
 
 emmeans(CC_lmer, pairwise ~ Nutrient_treatment, adjust = "tukey")
 
 
-# ggplot for Carbon cost to acquire and use nutrients
-
-CC_nutrient <- as.data.frame(emmeans(CC_lmer, ~Nutrient_treatment))
-
-Nuplot_CC <- ggplot(merge_costech, aes(y = Carbon_cost_to_acquire_nutrients, x = Nutrient_treatment, fill = Nutrient_treatment)) + 
-  geom_boxplot(alpha = 0.5)  +
-  geom_point(data = CC_nutrient, aes(y = emmean, x = Nutrient_treatment), 
-             shape = 18, size = 4, color = "black", inherit.aes = FALSE) +
-  geom_errorbar(data = CC_nutrient, aes(x = Nutrient_treatment, ymin = emmean - SE, ymax = emmean + SE),  width = 0.15, color = "black", alpha = 0.6, inherit.aes = FALSE) +
-  theme_bw() +
-  theme(legend.position = "none") +
-  labs (x = "Nutrient treatment",
-        y = "Carbon cost to acquire and use nutrients (gC/gN)")
-
-ggsave("Nuplot_CC.jpg", width = 10, height = 7, units = "in", dpi = 600)
+emmeans(CC_lmer, pairwise ~ Nutrient_treatment, adjust = "tukey")
 
 
 # emmeans for carbon cost
 em_CC <- as.data.frame(emmeans(CC_lmer, ~AMF * Nutrient_treatment * Water_treatment, type = "response")) 
 
-# ggplot for carbon cost nutrient (with signif)
 
-Treatment_CC <- ggplot(merge_costech, aes(y = Carbon_cost_to_acquire_nutrients, x = AMF , color = AMF)) + geom_jitter(width = 0.2, size = 2, alpha = 0.8)  +
-  geom_point(data = em_CC, aes(y = response, x = AMF), 
-             shape = 18, size = 3, color = "black", inherit.aes = FALSE) +
-  geom_errorbar(data = em_CC, aes(x = AMF, y = response,ymin = response - SE, ymax = response + SE),  width = 0.15, color = "black", alpha = 0.6, inherit.aes = FALSE) +  
-  scale_color_manual(values = c("red", "dodgerblue")) +  
-  labs(x = "AMF Presence/Absence", 
-       y = "Carbon cost to acquire and use nutrients (gC/gN)") +
-  facet_grid(Water_treatment ~ Nutrient_treatment,  
-             labeller = labeller(Water_treatment = c("Well watered" = "Well Watered", "Drought" = "Drought Condition"),Nutrient_treatment = c("Low nitrogen" = "Low N",  "High nitrogen" = "High N"))) + theme_bw(base_size = 17)  
-  
+## NEW PLOTS, SAME ANALYSIS
 
-ggsave("Treatment_CC.jpg", width = 10, height = 7, units = "in", dpi = 600)
+# ---- Model ----
+CC_lmer <- lmer(log(Carbon_cost_to_acquire_nutrients) ~
+                  Water_treatment * Nutrient_treatment * AMF + (1 | Block_ID),
+                data = merge_costech)
+
+car::Anova(CC_lmer, type = 2)
+
+em_CC <- as.data.frame(
+  emmeans(CC_lmer, ~ AMF * Water_treatment * Nutrient_treatment, type = "response")
+)
+
+# ---- Plot ----
+dodge  <- position_dodge(width = 0.8)
+jdodge <- position_jitterdodge(jitter.width = 0.15, dodge.width = 0.8)
+
+p_CC <- ggplot(em_CC, aes(Water_treatment, response, color = AMF)) +
+  geom_point(data = merge_costech,
+             aes(y = Carbon_cost_to_acquire_nutrients),
+             size = 2.5, alpha = 0.3, position = jdodge) +
+  geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL),
+                width = 0.2, linewidth = 1, position = dodge) +
+  geom_point(shape = 15, size = 5, position = dodge) +
+  geom_text(data = tibble(Nutrient_treatment = factor("Low Nitrogen",
+                                                      levels = levels(merge_costech$Nutrient_treatment)),
+                          label = sig_label(CC_lmer)),
+            aes(x = Inf, y = Inf, label = label), inherit.aes = FALSE,
+            hjust = 1.05, vjust = 1.2, size = 3, lineheight = 0.9) +
+  scale_color_manual(values = c(No = "#D55E00", Yes = "#009E73"),
+                     labels = c(No = "AMF absent", Yes = "AMF present")) +
+  scale_x_discrete(labels = c("High water supply" = "High water\nsupply",
+                              "Low water supply"  = "Low water\nsupply"))  +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2))) +
+  expand_limits(y = 0) +
+  facet_wrap(~ Nutrient_treatment) +
+  labs(x = NULL, y = expression(atop("Carbon cost to acquire",
+                                     "and use nutrients (gC "*gN^-1*")"))) +
+  theme_classic(base_size = 14) +
+  theme(legend.title = element_blank(),
+        legend.position = "top",
+        strip.background = element_blank(),
+        strip.text = element_text(size = 14),
+        panel.spacing.x = unit(2, "lines"),
+        axis.title.y = element_text(margin = margin(r = 8)),
+        plot.margin = margin(t = 10, r = 5, b = 10, l = 5))
+
+print(p_CC)
+
+ggsave("Figure_CC_ExpI.png", p_CC, width = 7, height = 5, dpi = 300)
 
 
-# ggplot for carbon cost nutrient (without signif)
-
-Treatment_CC_wsig <- ggplot(merge_costech, aes(y = Carbon_cost_to_acquire_nutrients, x = AMF , color = AMF)) + geom_jitter(width = 0.2, size = 2, alpha = 0.8)  +
-  geom_point(data = em_CC, aes(y = response, x = AMF), 
-             shape = 18, size = 3, color = "black", inherit.aes = FALSE) +
-  geom_errorbar(data = em_CC, aes(x = AMF, y = response,ymin = response - SE, ymax = response + SE),  width = 0.15, color = "black", alpha = 0.6, inherit.aes = FALSE) +  
-  scale_color_manual(values = c("red", "dodgerblue")) +  
-  labs(x = "AMF Presence/Absence", 
-       y = "Carbon cost to acquire and use nutrients (gC/gN)") +
-  facet_grid(Water_treatment ~ Nutrient_treatment,  
-             labeller = labeller(Water_treatment = c("Well watered" = "Well Watered", "Drought" = "Drought Condition"),Nutrient_treatment = c("Low nitrogen" = "Low Nitrogen",  "High nitrogen" = "High Nitrogen"))) +  theme_bw(base_size = 17) + guides(color = "none") + 
-  theme(axis.title = element_text(size = 20)) +theme(
-    strip.text.x = element_text(size = 22),   
-    strip.text.y = element_text(size = 22)    
-  )   
-
-ggsave("Treatment_CC_wsig.jpg", width = 10, height = 7, units = "in", dpi = 600)
 
 # Transpiration
-
-setwd("~/Documents/Experiment_I/Transpiration rate")
+setwd("~/Library/CloudStorage/OneDrive-TexasTechUniversity/Experiment I/Experiment_I/Transpiration rate")
 
 Transpiration <- read_excel("cumulative_transpiration.xlsx")
-#Transpiration <- Transpiration %>% filter(Cumulative_transpiration_rate < 3500)
 
-setwd("~/Library/CloudStorage/OneDrive-TexasTechUniversity/Experiment I/Experiment_I/Carbon_nitrogen_analysis/Carbon_nitrogen_analysis")
+#Transpiration <- Transpiration %>% filter(Cumulative_transpiration_rate < 3500)
 
 Tran_lmer <- lmer(sqrt(Cumulative_transpiration_rate) ~ Water_treatment * Nutrient_treatment * AMF + (1|Block_ID), data = Transpiration) 
 
 Anova(Tran_lmer)
- summary(Tran_lmer)
+summary(Tran_lmer)
 hist(residuals(Tran_lmer))
 shapiro.test(residuals(Tran_lmer)) 
 
 plot(Tran_lmer)
 
-emmeans(Tran_lmer, pairwise ~ Water_treatment * Nutrient_treatment, adjust = "tukey")
 
-emmeans(Tran_lmer, pairwise ~ AMF * Nutrient_treatment, adjust = "tukey")
-emmeans(Tran_lmer, pairwise ~ Water_treatment * AMF, adjust = "tukey")
 emmeans(Tran_lmer, pairwise ~ Nutrient_treatment, adjust = "tukey")
 emmeans(Tran_lmer, pairwise ~ Water_treatment, adjust = "tukey")
 emmeans(Tran_lmer, pairwise ~ AMF, adjust = "tukey")
-
-Nutrient_tran <- as.data.frame(emmeans(Tran_lmer, ~Nutrient_treatment))
-AMF_tran <-as.data.frame(emmeans(Tran_lmer, ~AMF))
 
 
 # AMF x Nutrient (for finding out % diff between AMF vs no AMF)
@@ -276,42 +325,36 @@ pct_dr <- ((emm_W$response[emm_W$AMF=="No" & emm_W$Water_treatment=="Drought"] -
 # emmeans for transpiration
 em_tran <- as.data.frame(emmeans(Tran_lmer, ~AMF * Nutrient_treatment * Water_treatment), type = "response")
 
-# ggplot for Transpiration
+# Root biomass carbon, whole plant biomass nitrogen and transpiration together
 
-Treatment_tran <- ggplot(Transpiration, aes(y = Cumulative_transpiration_rate, x = AMF , color = AMF)) + geom_jitter(width = 0.2, size = 2, alpha = 0.8)  +
-  geom_point(data = em_tran, aes(y = response, x = AMF), 
-             shape = 18, size = 3, color = "black", inherit.aes = FALSE) +
-  geom_errorbar(data = em_tran, aes(x = AMF, y = response, ymin = response - SE, ymax = response + SE),  width = 0.15, color = "black", alpha = 0.6, inherit.aes = FALSE) +  
-  scale_color_manual(values = c("red", "dodgerblue")) +
-  labs(x = "AMF Presence/Absence", 
-       y = "Cumulative transpiration rate (gwater)") +
-  facet_grid(Water_treatment ~ Nutrient_treatment,  
-             labeller = labeller(Water_treatment = c("Well watered" = "Well Watered", "Drought" = "Drought Condition"),Nutrient_treatment = c("Low nitrogen" = "Low N",  "High nitrogen" = "High N"))) + theme_bw(base_size = 17) 
+library(patchwork)
+library(ggh4x)
+
+same_size <- force_panelsizes(cols = unit(2.6, "in"), rows = unit(2.6, "in"))
+
+fig_all <- ((p_WPN + same_size) / (p_Root + same_size) / (p_tran + same_size)) +
+  plot_layout(guides = "collect") +
+  plot_annotation(tag_levels = "a") &
+  theme(legend.position = "top",
+        plot.tag = element_text(size = 14))
+
+fig_all
+ggsave("Figure_N_rootC_transpiration_ExpI.png", fig_all,
+       width = 8, height = 13, dpi = 600)
 
 
- 
-  geom_signif(comparisons = list(c("No", "Yes")), map_signif_level = TRUE, y_position = c(3900, 4000), bracket.size = 0.5, vjust = -0.05, size = 0.5) + ylim(NA, 4500)
-  
 
-ggsave("Treatment_tran.jpg", width = 10, height = 7, units = "in", dpi = 600)
+# merging root biomass carbon and transpiration
 
-AMFplot_tran <- ggplot(Transpiration, aes(y = Cumulative_transpiration_rate, x = AMF, fill = AMF)) + 
-  geom_boxplot(alpha = 0.5)  +
-  geom_point(data = AMF_tran, aes(y = emmean, x = AMF), 
-             shape = 18, size = 4, color = "black", inherit.aes = FALSE) +
-  geom_errorbar(data = AMF_tran, aes(x = AMF, ymin = emmean - SE, ymax = emmean + SE),  width = 0.15, color = "black", alpha = 0.6, inherit.aes = FALSE) +
-  theme_bw(base_size = 17) +
-  theme(legend.position = "none") +
-  labs (x = "AMF",
-        y = "Cumulative transpiration rate (gwater)")
+# might have to change directory to Carbon_nitrogen_analysis folder HERE
+setwd("~/Library/CloudStorage/OneDrive-TexasTechUniversity/Experiment I/Experiment_I/Carbon_nitrogen_analysis/Carbon_nitrogen_analysis")
 
-ggsave("AMFplot_tran.jpg", width = 10, height = 7, units = "in", dpi = 600)
 
 merge_transpiration <-merge(Transpiration, Root_costech, by = "Sample")
 
-# multiplied root carbon biomass by 1000 to make carbon cost for water in mg C per 1 gram water lost
+
 merge_transpiration <- merge_transpiration %>%
-  mutate(Carbon_cost_to_acquire_water = (Total_root_carbon_biomass*1000)/ Cumulative_transpiration_rate)
+  mutate(Carbon_cost_to_acquire_water = (Total_root_carbon_biomass)/ Cumulative_transpiration_rate)
 
 # Carbon cost to acquire and use water
 
@@ -324,122 +367,109 @@ shapiro.test(residuals(CCW_lmer))
 
 plot(CCW_lmer)
 
-emmeans(CCW_lmer, pairwise ~ Water_treatment * Nutrient_treatment, adjust = "tukey")
 
-emmeans(CCW_lmer, pairwise ~ AMF * Nutrient_treatment, adjust = "tukey")
 emmeans(CCW_lmer, pairwise ~ AMF, adjust = "tukey")
-
-emmeans(CCW_lmer, pairwise ~ Water_treatment, adjust = "tukey")
-
 emmeans(CCW_lmer, pairwise ~ Nutrient_treatment, adjust = "tukey")
-emmeans(CCW_lmer, pairwise ~ Nutrient_treatment * Water_treatment * AMF, adjust = "tukey")
 
-Nutrient_CCW <- as.data.frame(emmeans(CCW_lmer, ~Nutrient_treatment))
-AMF_CCW <-as.data.frame(emmeans(CCW_lmer, ~AMF))
+# emmeans for carbon cost of water
 
-# emmeans for carbon cost
 em_CCW <- as.data.frame(emmeans(CCW_lmer, ~AMF * Nutrient_treatment * Water_treatment))
-
-# ggplot for CCW 
-
-Treatment_CCW <- ggplot(merge_transpiration, aes(y = Carbon_cost_to_acquire_water, x = AMF , color = AMF)) + geom_jitter(width = 0.2, size = 2, alpha = 0.8)  +
-  geom_point(data = em_CCW, aes(y = emmean, x = AMF), 
-             shape = 18, size = 3, color = "black", inherit.aes = FALSE) +
-  geom_errorbar(data = em_CCW, aes(x = AMF, y = emmean,ymin = emmean - SE, ymax = emmean + SE),  width = 0.15, color = "black", alpha = 0.6, inherit.aes = FALSE) +  
-  scale_color_manual(values = c("red", "dodgerblue")) +  
-  labs(x = "AMF Presence/Absence", 
-       y = "Carbon cost to acquire and use water (mgC/gwater)") +
-  facet_grid(Water_treatment ~ Nutrient_treatment,  
-             labeller = labeller(Water_treatment = c("Well watered" = "Well Watered", "Drought" = "Drought Condition"),Nutrient_treatment = c("Low" = "Low Nitrogen",  "High" = "High Nitrogen"))) +  theme_bw(base_size = 17)  
-ggsave("Treatment_CCW.jpg", width = 10, height = 7, units = "in", dpi = 600)
-
-# ggplot for CCW (without signif)
-Treatment_CCW_wsig <- ggplot(merge_transpiration, aes(y = Carbon_cost_to_acquire_water, x = AMF , color = AMF)) + geom_jitter(width = 0.2, size = 2, alpha = 0.8)  +
-  geom_point(data = em_CCW, aes(y = emmean, x = AMF), 
-             shape = 18, size = 3, color = "black", inherit.aes = FALSE) +
-  geom_errorbar(data = em_CCW, aes(x = AMF, y = emmean,ymin = emmean - SE, ymax = emmean + SE),  width = 0.15, color = "black", alpha = 0.6, inherit.aes = FALSE) +  
-  scale_color_manual(values = c("red", "dodgerblue")) +  
-  labs(x = "AMF Presence/Absence", 
-       y = "Carbon cost to acquire and use water (gC/gwater)") +
-  facet_grid(Water_treatment ~ Nutrient_treatment,  
-             labeller = labeller(Water_treatment = c("Well watered" = "Well Watered", "Drought" = "Drought Condition"),Nutrient_treatment = c("Low" = "Low Nitrogen", "High" = "High Nitrogen"))) +  theme_bw(base_size = 17) + guides(color = "none") + theme(axis.title = element_text(size = 22)) + theme(
-               strip.text.x = element_text(size = 22),   
-               strip.text.y = element_text(size = 22)    
-             )
-
-ggsave("Treatment_CCW_wsig.jpg", width = 10, height = 7, units = "in", dpi = 600)
-
-Nuplot_CCW <- ggplot(merge_transpiration, aes(y = Carbon_cost_to_acquire_water, x = Nutrient_treatment, fill = Nutrient_treatment)) + 
-  geom_boxplot(alpha = 0.5)  +
-  geom_point(data = Nutrient_CCW, aes(y = emmean, x = Nutrient_treatment), 
-             shape = 18, size = 4, color = "black", inherit.aes = FALSE) +
-  geom_errorbar(data = Nutrient_CCW, aes(x = Nutrient_treatment, ymin = emmean - SE, ymax = emmean + SE),  width = 0.15, color = "black", alpha = 0.6, inherit.aes = FALSE) +
-  theme_bw() +
-  theme(legend.position = "none") +
-  labs (x = "Nutrient treatment",
-        y = "Carbon cost to acquire and use water (gC/gwater)")
+ 
 
 
-ggsave("Nuplot_CCW.jpg", width = 10, height = 7, units = "in", dpi = 600)
+# NEW PLOTS, SAME ANALYSIS
 
+# ---- Factors (same as merge_costech) ----
+merge_transpiration <- merge_transpiration |>
+  mutate(Water_treatment = factor(Water_treatment,
+                                  levels = c("High water supply", "Low water supply")),
+         Nutrient_treatment = factor(Nutrient_treatment,
+                                     levels = c("High Nitrogen", "Low Nitrogen")),
+         AMF = factor(AMF, levels = c("No", "Yes")))
 
-AMFplot_CCW <- ggplot(merge_transpiration, aes(y = Carbon_cost_to_acquire_water, x = AMF, fill = AMF)) + 
-  geom_boxplot(alpha = 0.5)  +
-  geom_point(data = AMF_CCW, aes(y = emmean, x = AMF), 
-             shape = 18, size = 4, color = "black", inherit.aes = FALSE) +
-  geom_errorbar(data = AMF_CCW, aes(x = AMF, ymin = emmean - SE, ymax = emmean + SE),  width = 0.15, color = "black", alpha = 0.6, inherit.aes = FALSE) +
-  theme_bw(base_size = 17) +
-  theme(legend.position = "none") +
-  labs (x = "AMF",
-        y = "Carbon cost to acquire and use water (gC/gwater)")
+# ---- Model ----
+CCW_lmer <- lmer(Carbon_cost_to_acquire_water ~
+                   Water_treatment * Nutrient_treatment * AMF + (1 | Block_ID),
+                 data = merge_transpiration)
 
+car::Anova(CCW_lmer, type = 2)
+shapiro.test(residuals(CCW_lmer))
 
-ggsave("AMFplot_CCW.jpg", width = 10, height = 7, units = "in", dpi = 600)
+em_CCW <- as.data.frame(
+  emmeans(CCW_lmer, ~ AMF * Water_treatment * Nutrient_treatment)
+)
 
+library(patchwork)
+library(ggh4x)
 
+# ---- Nutrients: log model, so back-transform ±1 SE (like chlorophyll) ----
+em_CC <- as.data.frame(emmeans(CC_lmer, ~ AMF * Water_treatment * Nutrient_treatment)) %>%
+  mutate(lo = exp(emmean - SE),
+         hi = exp(emmean + SE),
+         emmean = exp(emmean))
 
+p_CC <- ggplot(em_CC, aes(Water_treatment, emmean, color = AMF)) +
+  geom_point(data = merge_costech, aes(y = Carbon_cost_to_acquire_nutrients),
+             size = 2.5, alpha = 0.3, position = jdodge) +
+  geom_errorbar(aes(ymin = lo, ymax = hi),
+                width = 0.2, linewidth = 1, position = dodge) +
+  geom_point(shape = 15, size = 5, position = dodge) +
+  geom_text(data = tibble(Nutrient_treatment = factor("Low Nitrogen",
+                                                      levels = levels(merge_costech$Nutrient_treatment)),
+                          label = sig_label(CC_lmer)),
+            aes(x = Inf, y = Inf, label = label), inherit.aes = FALSE,
+            hjust = 1.05, vjust = 1.2, size = 4, lineheight = 0.9) +
+  scale_color_manual(values = c(No = "#D55E00", Yes = "#009E73"),
+                     labels = c(No = "AMF absent", Yes = "AMF present")) +
+  scale_x_discrete(limits = c("Low water supply", "High water supply"),
+                   labels = c("Low water\nsupply", "High water\nsupply")) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2))) +
+  expand_limits(y = 0) +
+  facet_wrap(~ Nutrient_treatment) +
+  labs(x = NULL,
+       y = expression(atop(displaystyle("Carbon cost to acquire"),
+                           displaystyle("and use nutrients (gC "*gN^-1*")")))) +
+  theme_classic(base_size = 14) +
+  theme(legend.title = element_blank(),
+        legend.position = "top",
+        strip.background = element_blank(),
+        strip.text = element_text(size = 14))
 
-# Beta
+# ---- Water: untransformed model, plain ±SE ----
+em_CCW <- as.data.frame(emmeans(CCW_lmer, ~ AMF * Water_treatment * Nutrient_treatment))
 
-merge_beta <- merge(merge_costech, merge_transpiration[, c("Sample", "Carbon_cost_to_acquire_water")], by = "Sample")
+p_CCW <- ggplot(em_CCW, aes(Water_treatment, emmean, color = AMF)) +
+  geom_point(data = merge_transpiration, aes(y = Carbon_cost_to_acquire_water),
+             size = 2.5, alpha = 0.3, position = jdodge) +
+  geom_errorbar(aes(ymin = emmean - SE, ymax = emmean + SE),
+                width = 0.2, linewidth = 1, position = dodge) +
+  geom_point(shape = 15, size = 5, position = dodge) +
+  geom_text(data = tibble(Nutrient_treatment = factor("Low Nitrogen",
+                                                      levels = levels(merge_transpiration$Nutrient_treatment)),
+                          label = sig_label(CCW_lmer)),
+            aes(x = Inf, y = Inf, label = label), inherit.aes = FALSE,
+            hjust = 1.05, vjust = 1.2, size = 4, lineheight = 0.9) +
+  scale_color_manual(values = c(No = "#D55E00", Yes = "#009E73"),
+                     labels = c(No = "AMF absent", Yes = "AMF present")) +
+  scale_x_discrete(limits = c("Low water supply", "High water supply"),
+                   labels = c("Low water\nsupply", "High water\nsupply")) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2))) +
+  expand_limits(y = 0) +
+  facet_wrap(~ Nutrient_treatment) +
+  labs(x = NULL,
+       y = expression(atop(displaystyle("Carbon cost to acquire"),
+                           displaystyle("and use water (gC g water"^-1*")")))) +
+  theme_classic(base_size = 14) +
+  theme(legend.title = element_blank(),
+        legend.position = "top",
+        strip.background = element_blank(),
+        strip.text = element_text(size = 14))
 
-merge_beta <- merge_beta %>% mutate(beta = `Carbon_cost_to_acquire_nutrients`/ `Carbon_cost_to_acquire_water`) 
+# ---- Combine with the same function and size as Vcmax/Jmax ----
+fig_CC <- make_fig(p_CC, p_CCW, c("a", "b"))
+fig_CC
 
-#merge_beta <- merge_beta %>% filter(beta < 1500)
-
-
-Beta_lmer <- lmer(sqrt(beta) ~ Water_treatment * Nutrient_treatment * AMF + (1|Block_ID), data = merge_beta)
-
-Anova(Beta_lmer)
-summary(Beta_lmer)
-hist(residuals(Beta_lmer))
-shapiro.test(residuals(Beta_lmer)) 
-
-plot(CCW_lmer)
-
-ggplot(merge_beta, aes(y = beta, x = AMF , color = AMF))+ geom_boxplot()
-
-
-pairs(emmeans(Beta_lmer, ~Nutrient_treatment))
-pairs(emmeans(Beta_lmer, ~Water_treatment))
-pairs(emmeans(Beta_lmer, ~AMF))
-
-pairs(emmeans(Beta_lmer, ~AMF* Nutrient_treatment))
-
-em_beta <- as.data.frame(emmeans(Beta_lmer, ~AMF * Nutrient_treatment * Water_treatment, type = "response"))
-
-Treatment_beta <- ggplot(merge_beta, aes(y = beta, x = AMF , color = AMF)) + geom_jitter(width = 0.2, size = 2, alpha = 0.8)  +
-  geom_point(data = em_beta, aes(y = response, x = AMF), 
-             shape = 18, size = 3, color = "black", inherit.aes = FALSE) +
-  geom_errorbar(data = em_beta, aes(x = AMF, y = response, ymin = response - SE, ymax = response + SE),  width = 0.15, color = "black", alpha = 0.6, inherit.aes = FALSE) +  
-  scale_color_manual(values = c("red", "dodgerblue")) +  
-  labs(x = "AMF Presence/Absence", 
-       y = "Carbon cost to acquire and use nutrients relative to water") +
-  facet_grid(Water_treatment ~ Nutrient_treatment,  
-             labeller = labeller(Water_treatment = c("Well watered" = "Well Watered", "Drought" = "Drought Condition"),Nutrient_treatment = c("Low nitrogen" = "Low N",  "High nitrogen" = "High N"))) +  theme_bw(base_size = 14)
-
-
-ggsave("Treatment_beta.jpg", width = 10, height = 7, units = "in", dpi = 600)
+ggsave("Figure_carbon_costs_ExpI.png", fig_CC, width = 8, height = 9, dpi = 600)
 
 
 
@@ -464,10 +494,6 @@ shapiro.test(residuals(TB_lmer))
 
 plot(CC_lmer)
 
-ggplot(merge_biomass, aes(y = Total_biomass , x = Nutrient_treatment , color = AMF))+ geom_boxplot()
-
-
-emmeans(TB_lmer, pairwise ~ Water_treatment * Nutrient_treatment, adjust = "tukey") 
 emmeans(TB_lmer, pairwise ~ Nutrient_treatment, adjust = "tukey")
 
 
@@ -476,73 +502,84 @@ emmeans(TB_lmer, pairwise ~ Nutrient_treatment, adjust = "tukey")
 em_biomass <- as.data.frame(emmeans(TB_lmer, ~AMF * Nutrient_treatment * Water_treatment))
 
 
-# ggplot with facet grid
-
-Treatment_TB <- ggplot(merge_biomass, aes(y = Total_biomass, x = AMF , color = AMF)) + 
-  geom_jitter(width = 0.2, size = 2, alpha = 0.8)  +
-  geom_point(data = em_biomass, aes(y = emmean, x = AMF), 
-             shape = 18, size = 3, color = "black", inherit.aes = FALSE) +
-  geom_errorbar(data = em_biomass, aes(x = AMF, y = emmean ,ymin = emmean - SE, ymax = emmean + SE),  width = 0.15, color = "black", alpha = 0.6, inherit.aes = FALSE) +  
-  scale_color_manual(values = c("red", "dodgerblue")) +  
-  labs(x = "AMF Presence/Absence", 
-       y =  "Total Biomass (g)") +
-  facet_grid(Water_treatment ~ Nutrient_treatment,  
-             labeller = labeller(Water_treatment = c("Well watered" = "Well Watered", "Drought" = "Drought Condition"),Nutrient_treatment = c("Low nitrogen" = "Low Nitrogen", "High nitrogen" = "High Nitrogen"))) +  theme_bw(base_size = 17) + guides(color = "none") +
-  theme(axis.title = element_text(size = 22)) +theme(
-    strip.text.x = element_text(size = 22),   
-    strip.text.y = element_text(size = 22)    
-  )   
-
-
-ggsave("Treatment_TB.jpg", width = 10, height = 7, units = "in", dpi = 600)
-
-
 # Total leaf area
 
-TLA_lmer <- lmer(Total_leaf_area ~ Water_treatment * Nutrient_treatment * AMF + (1|Block_ID), data = merge_biomass)
+TLA_lmer <- lmer(`Total leaf area` ~ Water_treatment * Nutrient_treatment * AMF + (1|Block_ID), data = merge_biomass)
 
 Anova(TLA_lmer)
 summary(TLA_lmer)
 hist(residuals(TLA_lmer))
 shapiro.test(residuals(TLA_lmer)) 
 
-plot(CC_lmer)
+plot(TLA_lmer)
 
-emmeans(TLA_lmer, pairwise ~ Water_treatment, adjust = "tukey")
 emmeans(TLA_lmer, pairwise ~ Nutrient_treatment, adjust = "tukey")
 emmeans(TLA_lmer, pairwise ~ AMF, adjust = "tukey")
-
-emmeans(TLA_lmer, pairwise ~ AMF * Nutrient_treatment, adjust = "tukey")
-
 
 emmeans(TLA_lmer, pairwise ~ Water_treatment * Nutrient_treatment * AMF, adjust = "tukey")
 
 emmeans(TLA_lmer, pairwise ~ AMF * Nutrient_treatment, adjust = "tukey") 
-# posthoc analysis shows there is no difference in TLA in low nitrogen regardless of AMF presence
 
-
-ggplot(merge_costech, aes(y = Total_root_carbon_biomass , x = Nutrient_treatment , color = AMF))+ geom_boxplot()
+# posthoc analysis shows there is no difference in TLA in low nitrogen 
+# regardless of AMF presence
 
 # emmeans for TLA
 
 em_TLA <- as.data.frame(emmeans(TLA_lmer, ~AMF * Nutrient_treatment * Water_treatment))
 
 
-# ggplot with facet grid
+## NEW PLOTS, SAME ANALYSIS
 
-Treatment_TLA <- ggplot(merge_biomass, aes(y = Total_leaf_area, x = AMF , color = AMF)) + 
-  geom_jitter(width = 0.2, size = 2, alpha = 0.8)  +
-  geom_point(data = em_TLA, aes(y = emmean, x = AMF), 
-             shape = 18, size = 3, color = "black", inherit.aes = FALSE) +
-  geom_errorbar(data = em_TLA, aes(x = AMF, y = emmean ,ymin = emmean - SE, ymax = emmean + SE),  width = 0.15, color = "black", alpha = 0.6, inherit.aes = FALSE) +  
-  scale_color_manual(values = c("red", "dodgerblue")) +  
-  labs(x = "AMF Presence/Absence", 
-       y =  expression("Total leaf area (cm"^2*")")) +
-  facet_grid(Water_treatment ~ Nutrient_treatment,  
-             labeller = labeller(Water_treatment = c("Well watered" = "Well Watered", "Drought" = "Drought Condition"),Nutrient_treatment = c("Low nitrogen" = "Low N", "High nitrogen" = "High N"))) +  theme_bw(base_size = 17)
+# ---- Model ----
+TLA_lmer <- lmer(`Total leaf area` ~ Water_treatment * Nutrient_treatment * AMF +
+                   (1 | Block_ID), data = merge_biomass)
 
+car::Anova(TLA_lmer, type = 2)
+shapiro.test(residuals(TLA_lmer))
 
-ggsave("Treatment_TLA.jpg", width = 10, height = 7, units = "in", dpi = 600)
+em_TLA <- as.data.frame(
+  emmeans(TLA_lmer, ~ AMF * Water_treatment * Nutrient_treatment)
+)
+
+# ---- Plot ----
+p_TLA <- ggplot(em_TLA, aes(Water_treatment, emmean, color = AMF)) +
+  geom_point(data = merge_biomass, aes(y = `Total leaf area`),
+             size = 2.5, alpha = 0.3, position = jdodge) +
+  geom_errorbar(aes(ymin = emmean - SE, ymax = emmean + SE),
+                width = 0.2, linewidth = 1, position = dodge) +
+  geom_point(shape = 15, size = 5, position = dodge) +
+  geom_text(data = tibble(Nutrient_treatment = factor("Low Nitrogen",
+                                                      levels = levels(merge_biomass$Nutrient_treatment)),
+                          label = sig_label(TLA_lmer)),
+            aes(x = Inf, y = Inf, label = label), inherit.aes = FALSE,
+            hjust = 1.05, vjust = 1.2, size = 3, lineheight = 0.9) +
+  scale_color_manual(values = c(No = "red", Yes = "darkgreen"),
+                     labels = c(No = "AMF absent", Yes = "AMF present")) +
+  scale_x_discrete(labels = c("High water supply" = "High water\nsupply",
+                              "Low water supply"  = "Low water\nsupply")) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2))) +
+  expand_limits(y = 0) +
+  facet_wrap(~ Nutrient_treatment) +
+  labs(x = NULL, y = expression("Total leaf area (cm"^2*")")) +
+  theme_classic(base_size = 14) +
+  theme(legend.title = element_blank(),
+        legend.position = "top",
+        strip.background = element_blank(),
+        strip.text = element_text(size = 14),
+        panel.spacing.x = unit(2, "lines"),
+        axis.title.y = element_text(margin = margin(r = 8)),
+        plot.margin = margin(t = 10, r = 5, b = 10, l = 5))
+
+# ---- Combine: a = biomass, b = leaf area ----
+fig_growth <- (p_TB / p_TLA) +
+  plot_layout(guides = "collect") +
+  plot_annotation(tag_levels = "a") &
+  theme(legend.position = "top")
+
+print(fig_growth)
+
+ggsave("Figure_growth_ExpI.png", fig_growth, width = 7, height = 9, dpi = 300)
+
 
 # Root shoot ratio
 
@@ -553,44 +590,65 @@ summary(RS_lmer)
 hist(residuals(RS_lmer))
 shapiro.test(residuals(RS_lmer)) 
 
-plot(CC_lmer)
+plot(RS_lmer)
 
 # Tukey's test post hoc analysis
 
 emmeans(RS_lmer, pairwise ~ Nutrient_treatment, adjust = "tukey")
 emmeans(RS_lmer, pairwise ~ AMF, adjust = "tukey")
 
-emmeans(RS_lmer, pairwise ~ Water_treatment * Nutrient_treatment, adjust = "tukey")
-
-emmeans(RS_lmer, pairwise ~ AMF * Nutrient_treatment, adjust = "tukey") 
-
-emmeans(RS_lmer, pairwise ~ Water_treatment * AMF, adjust = "tukey")
-
-
 # emmeans for RS
 
 em_RS <- as.data.frame(emmeans(RS_lmer, ~AMF * Nutrient_treatment * Water_treatment))
 
+## NEW PLOTS, SAME ANALYSIS
 
-# ggplot with facet grid
+# emmeans 
+em_TB  <- as.data.frame(emmeans(TB_lmer,  ~ AMF * Nutrient_treatment * Water_treatment))
+em_TLA <- as.data.frame(emmeans(TLA_lmer, ~ AMF * Nutrient_treatment * Water_treatment))
+em_RS  <- as.data.frame(emmeans(RS_lmer,  ~ AMF * Nutrient_treatment * Water_treatment))
 
-Treatment_RS <- ggplot(merge_biomass, aes(y = `Root shoot ratio`, x = AMF , color = AMF)) + 
-  geom_jitter(width = 0.2, size = 2, alpha = 0.8)  +
-  geom_point(data = em_RS, aes(y = emmean, x = AMF), 
-             shape = 18, size = 3, color = "black", inherit.aes = FALSE) +
-  geom_errorbar(data = em_RS, aes(x = AMF, y = emmean ,ymin = emmean - SE, ymax = emmean + SE),  width = 0.15, color = "black", alpha = 0.6, inherit.aes = FALSE) +  
-  scale_color_manual(values = c("red", "dodgerblue")) +  
-  labs(x = "AMF Presence/Absence", 
-       y =  "Root-Shoot ratio") +
-  facet_grid(Water_treatment ~ Nutrient_treatment,  
-             labeller = labeller(Water_treatment = c("Well watered" = "Well Watered", "Drought" = "Drought Condition"),Nutrient_treatment = c("Low nitrogen" = "Low N", "High nitrogen" = "High N"))) +  theme_bw(base_size = 17)
+#  Plots 
+p_TB  <- plot_trt(em_TB,  merge_biomass, "Total_biomass", TB_lmer,
+                  "Total biomass (g)")
+p_TLA <- plot_trt(em_TLA, merge_biomass, "Total leaf area", TLA_lmer,
+                  expression("Total leaf area ("*cm^2*")"))
+p_RS  <- plot_trt(em_RS,  merge_biomass, "Root shoot ratio", RS_lmer,
+                  "Root:shoot ratio")
+
+# a & b
+fig_growth <- make_fig(p_TB, p_TLA, c("a", "b"))
+fig_growth
+ggsave("Figure_growth_ExpI.png", fig_growth, width = 8, height = 9, dpi = 600)
+
+# c- Root:Shoot ratio
+fig_RS <- p_RS +
+  labs(tag = "c") +
+  force_panelsizes(cols = unit(2.6, "in"), rows = unit(2.6, "in")) +
+  theme(plot.tag = element_text(size = 14))
+fig_RS
+ggsave("Figure_RS_ExpI.png", fig_RS, width = 8, height = 4.6, dpi = 600)
+
+# three graphs together
+
+fig_growth <- (p_TB /
+                 (p_TLA + theme(strip.text = element_blank())) /
+                 (p_RS  + theme(strip.text = element_blank()))) +
+  plot_layout(guides = "collect") +
+  plot_annotation(tag_levels = list(c("a", "b", "c"))) &
+  force_panelsizes(cols = unit(2.6, "in"), rows = unit(2.6, "in")) &
+  theme(legend.position = "top",
+        plot.tag = element_text(size = 14))
+
+fig_growth
+
+ggsave("Figure_growth_RS_ExpI.png", fig_growth, width = 8, height = 13, dpi = 600)
 
 
-ggsave("Treatment_RS.jpg", width = 10, height = 7, units = "in", dpi = 600)
 
 # Narea, LMA, Nmass
 
-
+# Nmass data is from UC davis Total_N
 
 Nmass <- read_excel("Nmass.xlsx")
 
@@ -598,9 +656,11 @@ metadata <- read_excel("metadata.xlsx")
 
 merge_Nmass <- merge(Nmass, metadata, by = "Sample")
 
+merge_Nmass$Block_ID_fc <- as.factor(merge_Nmass$Block_ID)
+
 # LMA
 
-LMA_lmer <- lmer(log(LMA) ~ Water_treatment * Nutrient_treatment * AMF + (1|Block_ID), data = merge_Nmass)
+LMA_lmer <- lmer(log(LMA) ~ Water_treatment * Nutrient_treatment * AMF + (1|Block_ID_fc), data = merge_Nmass)
 
 Anova(LMA_lmer)
 summary(LMA_lmer)
@@ -611,40 +671,17 @@ plot(LMA_lmer)
 
 # Tukey's test post hoc analysis
 
-emmeans(LMA_lmer, pairwise ~ Nutrient_treatment, adjust = "tukey")
 emmeans(LMA_lmer, pairwise ~ AMF, adjust = "tukey")
-
-emmeans(LMA_lmer, pairwise ~ AMF * Nutrient_treatment, adjust = "tukey") 
-
-emmeans(LMA_lmer, pairwise ~ Water_treatment * AMF , adjust = "tukey")
-
-emmeans(LMA_lmer, pairwise ~ Water_treatment * AMF * Nutrient_treatment, adjust = "tukey")
-
 
 # emmeans for LMA
 
-em_LMA <- as.data.frame(emmeans(LMA_lmer, ~AMF * Nutrient_treatment * Water_treatment, type = "response"))
+em_LMA <- as.data.frame(emmeans(LMA_lmer, ~AMF * Nutrient_treatment * Water_treatment))
 
 
-# ggplot with facet grid
 
-Treatment_LMA <- ggplot(merge_Nmass, aes(y = LMA, x = AMF , color = AMF)) + 
-  geom_jitter(width = 0.2, size = 2, alpha = 0.8)  +
-  geom_point(data = em_LMA, aes(y = response, x = AMF), 
-             shape = 18, size = 3, color = "black", inherit.aes = FALSE) +
-  geom_errorbar(data = em_LMA, aes(x = AMF, y = response ,ymin = response - SE, ymax = response + SE),  width = 0.15, color = "black", alpha = 0.6, inherit.aes = FALSE) +  
-  scale_color_manual(values = c("red", "dodgerblue")) +  
-  labs(x = "AMF Presence/Absence", 
-       y =  expression("Leaf mass per area (g/cm"^2*")")) +
-  facet_grid(Water_treatment ~ Nutrient_treatment,  
-             labeller = labeller(Water_treatment = c("Well watered" = "Well Watered", "Drought" = "Drought Condition"),Nutrient_treatment = c("Low nitrogen" = "Low N", "High nitrogen" = "High N"))) +  theme_bw(base_size = 17)
+# Nmass
 
-
-ggsave("Treatment_LMA.jpg", width = 10, height = 7, units = "in", dpi = 600)
-
-#Nmass
-
-Nmass_lmer <- lmer(Nmass ~ Water_treatment * Nutrient_treatment * AMF + (1|Block_ID), data = merge_Nmass)
+Nmass_lmer <- lmer(`Nmass (gN/g leaf)` ~ Water_treatment * Nutrient_treatment * AMF + (1|Block_ID), data = merge_Nmass)
 
 Anova(Nmass_lmer)
 summary(Nmass_lmer)
@@ -658,40 +695,19 @@ plot(Nmass_lmer)
 emmeans(Nmass_lmer, pairwise ~ Nutrient_treatment, adjust = "tukey")
 emmeans(Nmass_lmer, pairwise ~ AMF, adjust = "tukey")
 
-emmeans(Nmass_lmer, pairwise ~ AMF * Nutrient_treatment, adjust = "tukey") 
-
-emmeans(Nmass_lmer, pairwise ~ Water_treatment * Nutrient_treatment, adjust = "tukey")
-
-emmeans(Nmass_lmer, pairwise ~ AMF * Water_treatment, adjust = "tukey") 
-
-emmeans(Nmass_lmer, pairwise ~ AMF * Water_treatment * Nutrient_treatment, adjust = "tukey") 
-
 # emmeans for Nmass
 
 em_Nmass <- as.data.frame(emmeans(Nmass_lmer, ~AMF * Nutrient_treatment * Water_treatment))
 
 
-# ggplot with facet grid
+# Narea
 
-Treatment_Nmass <- ggplot(merge_Nmass, aes(y = Nmass, x = AMF , color = AMF)) + 
-  geom_jitter(width = 0.2, size = 2, alpha = 0.8)  +
-  geom_point(data = em_Nmass, aes(y = emmean, x = AMF), 
-             shape = 18, size = 3, color = "black", inherit.aes = FALSE) +
-  geom_errorbar(data = em_Nmass, aes(x = AMF, y = emmean ,ymin = emmean - SE, ymax = emmean + SE),  width = 0.15, color = "black", alpha = 0.6, inherit.aes = FALSE) +  
-  scale_color_manual(values = c("red", "dodgerblue")) +  
-  labs(x = "AMF Presence/Absence", 
-       y =  expression("Leaf Nitrogen content (gN g"^-1*")")) +
-  facet_grid(Water_treatment ~ Nutrient_treatment,  
-             labeller = labeller(Water_treatment = c("Well watered" = "Well Watered", "Drought" = "Drought Condition"),Nutrient_treatment = c("Low nitrogen" = "Low N", "High nitrogen" = "High N"))) +  theme_bw(base_size = 17)
-
-
-ggsave("Treatment_Nmass.jpg", width = 10, height = 7, units = "in", dpi = 600)
-
-#Narea
-
-Narea_lmer <- lmer(Narea ~ Water_treatment * Nutrient_treatment * AMF + (1|Block_ID), data = merge_Nmass)
+Narea_lmer <- lmer(Narea ~ Water_treatment * Nutrient_treatment * AMF + (1|Block_ID_fc), data = merge_Nmass)
 
 Anova(Narea_lmer)
+
+# blocking has no effect, random effect is zero, to keep everything same keeping lmer
+
 summary(Narea_lmer)
 hist(residuals(Narea_lmer))
 shapiro.test(residuals(Narea_lmer)) 
@@ -701,147 +717,126 @@ plot(Narea_lmer)
 # Tukey's test post hoc analysis
 
 emmeans(Narea_lmer, pairwise ~ Nutrient_treatment, adjust = "tukey")
-emmeans(Narea_lmer, pairwise ~ AMF, adjust = "tukey")
-
-emmeans(Narea_lmer, pairwise ~ AMF * Nutrient_treatment, adjust = "tukey") 
-
-emmeans(Narea_lmer, pairwise ~ Water_treatment * Nutrient_treatment, adjust = "tukey")
-
-emmeans(Narea_lmer, pairwise ~ AMF * Water_treatment, adjust = "tukey") 
-
-emmeans(Narea_lmer, pairwise ~ AMF * Water_treatment * Nutrient_treatment, adjust = "tukey") 
 
 # emmeans for Nmass
 
 em_Narea <- as.data.frame(emmeans(Narea_lmer, ~AMF * Nutrient_treatment * Water_treatment))
 
 
-# ggplot with facet grid
+# New plots, same results (LMA, Nmass)
 
-Treatment_Narea <- ggplot(merge_Nmass, aes(y = Narea, x = AMF , color = AMF)) + 
-  geom_jitter(width = 0.2, size = 2, alpha = 0.8)  +
-  geom_point(data = em_Narea, aes(y = emmean, x = AMF), 
-             shape = 18, size = 3, color = "black", inherit.aes = FALSE) +
-  geom_errorbar(data = em_Narea, aes(x = AMF, y = emmean ,ymin = emmean - SE, ymax = emmean + SE),  width = 0.15, color = "black", alpha = 0.6, inherit.aes = FALSE) +  
-  scale_color_manual(values = c("red", "dodgerblue")) +  
-  labs(x = "AMF Presence/Absence", 
-       y =  expression("Nitrogen per unit area of leaf (gN/cm"^2*")")) +
-  facet_grid(Water_treatment ~ Nutrient_treatment,  
-             labeller = labeller(Water_treatment = c("Well watered" = "Well Watered", "Drought" = "Drought Condition"),Nutrient_treatment = c("Low nitrogen" = "Low N", "High nitrogen" = "High N"))) +  theme_bw(base_size = 17)
+library(patchwork)
+library(ggh4x)
 
-
-ggsave("Treatment_Narea.jpg", width = 10, height = 7, units = "in", dpi = 600)
-
-
-
-# Relationship between transpiration and Total leaf area
-
-Tran_TLA <- merge(merge_biomass, Transpiration, by= "Sample")
-
-# Remove all .x and .y columns — keep whichever version you want
-Tran_TLA <- Tran_TLA[, !grepl("\\.x$", names(Tran_TLA))]  # drops all .x cols
-
-# Rename the .y versions back to clean names
-names(Tran_TLA) <- gsub("\\.y$", "", names(Tran_TLA))
-
-# Running a manova model to see a relationship between TLA and transpiration
-man_model <- manova(cbind(Total_leaf_area, Cumulative_transpiration_rate) ~ 
-                      AMF * Water_treatment * Nutrient_treatment, 
-                    data = Tran_TLA)
-
-summary(man_model)                        
-summary.aov(man_model)
-
-# Running ggplot
-Tran_TLA_plot <- ggplot(Tran_TLA, aes(x = Total_leaf_area, y = Cumulative_transpiration_rate, color = AMF)) +
-  geom_point(size = 2, alpha = 0.5) + stat_ellipse(aes(fill = AMF), geom = "polygon",
-               alpha = 0.1, level = 0.95, linewidth = 0.8) +
-  scale_color_manual(values = c("red", "dodgerblue"), name = "AMF") +
-  scale_fill_manual(values = c("red", "dodgerblue"), guide = "none") +
-  labs(x = expression("Total Leaf Area (cm"^2*")"),
-       y = expression("Transpiration Rate (mmol m"^-2*" s"^-1*")")) +
-  facet_grid(Water_treatment ~ Nutrient_treatment,
-             labeller = labeller(Water_treatment = c("Well watered" = "Well Watered",
-                                   "Drought" = "Drought Condition"),
-               Nutrient_treatment = c("Low nitrogen" = "Low nitrogen",
-                                      "High nitrogen" = "High nitrogen"))) + theme_bw(base_size = 17) +
-  theme(legend.position = "right")
-
-ggsave("Tran_TLA_plot.jpg", width = 10, height = 7, units = "in", dpi = 600)
-
-# Running a manova model to see a relationship between transpiartion and total root carbon biomass
-
-TRCB_CTR_model <- manova(cbind(Total_root_carbon_biomass, Cumulative_transpiration_rate) ~ 
-                      AMF * Water_treatment * Nutrient_treatment, 
-                    data = merge_transpiration)
-
-summary(TRCB_CTR_model)                        
-summary.aov(TRCB_CTR_model)
-
-# Running ggplot
-TRCB_CTR_plot <- ggplot(merge_transpiration, aes(x = Total_root_carbon_biomass, y = Cumulative_transpiration_rate, color = AMF)) +
-  geom_point(size = 2, alpha = 0.5) + stat_ellipse(aes(fill = AMF), geom = "polygon",
-                                                   alpha = 0.1, level = 0.95, linewidth = 0.8) +
-  scale_color_manual(values = c("red", "dodgerblue"), name = "AMF") +
-  scale_fill_manual(values = c("red", "dodgerblue"), guide = "none") +
-  labs(x = expression("Total root carbon biomass (g)"),
-       y = expression("Transpiration Rate (mmol m"^-2*" s"^-1*")")) +
-  facet_grid(Water_treatment ~ Nutrient_treatment,
-             labeller = labeller(Water_treatment = c("Well watered" = "Well Watered",
-                                                     "Drought" = "Drought Condition"),
-                                 Nutrient_treatment = c("Low nitrogen" = "Low nitrogen",
-                                                        "High nitrogen" = "High nitrogen"))) + theme_bw(base_size = 17) +
-  theme(legend.position = "right")
-
-ggsave("Tran_TLA_plot.jpg", width = 10, height = 7, units = "in", dpi = 600)
-
-
-# Linear regression
-lm_model <- lm(Cumulative_transpiration_rate ~ Total_leaf_area, data = Tran_TLA)
-summary(lm_model)
-
-ggplot(Tran_TLA, aes(x = Total_leaf_area, y = Cumulative_transpiration_rate, color = AMF)) +
+# Reusable trait plot
+plot_trt <- function(em, raw, yvar, model, ylab, from_zero = TRUE) {
+  p <- ggplot(em, aes(Water_treatment, emmean, color = AMF)) +
+    geom_point(data = raw, aes(y = .data[[yvar]]),
+               size = 2.5, alpha = 0.3, position = jdodge) +
+    geom_errorbar(aes(ymin = emmean - SE, ymax = emmean + SE),
+                  width = 0.2, linewidth = 1, position = dodge) +
+    geom_point(shape = 15, size = 5, position = dodge) +
+    geom_text(data = tibble(Nutrient_treatment = "Low Nitrogen", label = sig_label(model)),
+              aes(x = Inf, y = Inf, label = label), inherit.aes = FALSE,
+              hjust = 1.05, vjust = 1.2, size = 4, lineheight = 0.9) +
+    scale_color_manual(values = c(No = "#D55E00", Yes = "#009E73"),
+                       labels = c(No = "AMF absent", Yes = "AMF present")) +
+    scale_x_discrete(limits = c("Low water supply", "High water supply"),
+                     labels = c("Low water\nsupply", "High water\nsupply")) +
+    facet_wrap(~ Nutrient_treatment) +
+    labs(x = NULL, y = ylab) +
+    theme_classic(base_size = 14) +
+    theme(legend.title = element_blank(),
+          legend.position = "top",
+          strip.background = element_blank(),
+          strip.text = element_text(size = 14))
   
-  geom_point(size = 2, alpha = 0.5) +
-  
-  geom_smooth(method = "lm", se = TRUE, color = "black", fill = "grey70", alpha = 0.2) +
-  
-  scale_color_manual(values = c("red", "dodgerblue"), name = "AMF") +
-  
-  labs(x = expression("Total Leaf Area (cm"^2*")"),
-       y = expression("Transpiration Rate (mmol m"^-2*" s"^-1*")")) +
-  
-  facet_grid(Water_treatment ~ Nutrient_treatment,
-             labeller = labeller(
-               Water_treatment = c("Well watered" = "Well Watered",
-                                   "Drought" = "Drought Condition"),
-               Nutrient_treatment = c("Low nitrogen" = "Low N",
-                                      "High nitrogen" = "High N"))) +
-  
-  theme_bw(base_size = 17) +
-  theme(legend.position = "right")
+  if (from_zero) {
+    p + scale_y_continuous(expand = expansion(mult = c(0, 0.2))) + expand_limits(y = 0)
+  } else {
+    p + scale_y_continuous(expand = expansion(mult = c(0.05, 0.2)))
+  }
+}
 
-lm_model1 <- lm(Total_root_carbon_biomass ~ Cumulative_transpiration_rate, data = merge_transpiration)
-summary(lm_model1)
+# ---- Data ----
+em_LMA <- as.data.frame(emmeans(LMA_lmer, ~ AMF * Nutrient_treatment * Water_treatment)) %>%
+  mutate(lo = exp(emmean - SE),
+         hi = exp(emmean + SE),
+         emmean = exp(emmean)) %>%
+  recode_trt()
+em_Nmass <- as.data.frame(emmeans(Nmass_lmer, ~ AMF * Nutrient_treatment * Water_treatment)) %>% recode_trt()
+Nmass_raw <- merge_Nmass %>% recode_trt()
+
+# ---- Plots ----
+p_LMA <- plot_trt(em_LMA, Nmass_raw, "LMA", LMA_lmer,
+                  expression("LMA (g "*cm^-2*")"))
+
+p_Nmass <- plot_trt(em_Nmass, Nmass_raw, "Nmass (gN/g leaf)", Nmass_lmer,
+                    expression(N[mass]~"(g N "*g^-1*")"))
+
+# ---- Combine: same size as Vcmax/Jmax ----
+fig_leaf <- make_fig(p_LMA, p_Nmass, c("a", "b"))
+fig_leaf
+
+ggsave("Figure_LMA_Nmass_ExpI.png", fig_leaf, width = 8, height = 9, dpi = 600)
+
+# Narea
+
+em_Narea <- as.data.frame(emmeans(Narea_lmer, ~ AMF * Nutrient_treatment * Water_treatment)) %>%
+  recode_trt()
+
+p_Narea <- plot_trt(em_Narea, Nmass_raw, "Narea", Narea_lmer,
+                    expression(N[area]~"(g N "*cm^-2*")"))
+
+# Standalone, same panel size as the other figures
+fig_Narea <- p_Narea +
+  labs(tag = "c") +
+  force_panelsizes(cols = unit(2.6, "in"), rows = unit(2.6, "in")) +
+  theme(plot.tag = element_text(size = 14))
+
+fig_Narea
+
+ggsave("Figure_Narea_ExpI.png", fig_Narea, width = 8, height = 4.6, dpi = 600)
+
+# all three figures together
+
+fig_leaf <- (p_LMA /
+               (p_Nmass + theme(strip.text = element_blank())) /
+               (p_Narea + theme(strip.text = element_blank()))) +
+  plot_layout(guides = "collect") +
+  plot_annotation(tag_levels = list(c("a", "b", "c"))) &
+  force_panelsizes(cols = unit(2.6, "in"), rows = unit(2.6, "in")) &
+  theme(legend.position = "top",
+        plot.tag = element_text(size = 14))
+
+fig_leaf
+
+ggsave("Figure_LMA_Nmass_Narea_ExpI.png", fig_leaf, width = 8, height = 13, dpi = 600)
 
 
-ggplot(merge_transpiration, aes(x = Total_root_carbon_biomass, y = Cumulative_transpiration_rate, color = AMF)) +
-  
-  geom_point(size = 2, alpha = 0.5) +
-  
-  geom_smooth(method = "lm", se = TRUE, color = "black", fill = "red", alpha = 0.2) +
-  
-  scale_color_manual(values = c("red", "dodgerblue"), name = "AMF") +
-  
-  labs(x = expression("Total root carbon biomass (g)"),
-       y = expression("Transpiration Rate (mmol m"^-2*" s"^-1*")")) +
-  
-  facet_grid(Water_treatment ~ Nutrient_treatment,
-             labeller = labeller(
-               Water_treatment = c("Well watered" = "Well Watered",
-                                   "Drought" = "Drought Condition"),
-               Nutrient_treatment = c("Low nitrogen" = "Low N",
-                                      "High nitrogen" = "High N"))) +
-  
-  theme_bw(base_size = 17) +
-  theme(legend.position = "right")
+
+# ---- Mass-based Vcmax and Jmax ----
+
+# 1. Join LMA onto the Vcmax/Jmax data by plant
+mass_dat <- merge_stats %>%
+  dplyr::left_join(dplyr::select(merge_Nmass, Sample, LMA), by = "Sample") %>%
+  dplyr::filter(!is.na(Vcmax), !is.na(LMA)) %>%
+  dplyr::mutate(Block_ID = as.factor(Block_ID),
+                Vcmax_mass = Vcmax / (LMA * 10000),   # umol g-1 s-1
+                Jmax_mass  = Jmax  / (LMA * 10000))
+
+nrow(mass_dat)   # should be 45 (LND No Myco 1 has no A/Ci curve)
+
+# 2. Vcmax per gram of leaf
+Vcmax_mass_lmer <- lmer(Vcmax_mass ~ Water_treatment * Nutrient_treatment * AMF +
+                          (1 | Block_ID), data = mass_dat)
+Anova(Vcmax_mass_lmer, type = 2)
+emmeans(Vcmax_mass_lmer, pairwise ~ AMF)
+shapiro.test(residuals(Vcmax_mass_lmer))
+
+# 3. Jmax per gram of leaf
+Jmax_mass_lmer <- lmer(Jmax_mass ~ Water_treatment * Nutrient_treatment * AMF +
+                         (1 | Block_ID), data = mass_dat)
+Anova(Jmax_mass_lmer, type = 2)
+emmeans(Jmax_mass_lmer, pairwise ~ AMF)
+shapiro.test(residuals(Jmax_mass_lmer))

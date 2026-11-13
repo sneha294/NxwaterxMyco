@@ -33,7 +33,7 @@ metadata <- read_excel("metadata.xlsx")
 # merging metadata with stable isotope excel sheet
 merge_1 <-merge(stable_isotope, metadata, by = "Sample")
 
-merge_1 <- merge_1 %>% filter(chi > 0.80)
+#merge_1 <- merge_1 %>% filter(chi > 0.80)
 
 
 ## Running statistics on chi
@@ -43,14 +43,14 @@ Chi_lmer <- lmer(chi ~ Water_treatment * Nutrient_treatment * AMF + (1|Block_ID)
 Anova(Chi_lmer)  # AMF treatment is significant
 summary(Chi_lmer)
 hist(residuals(Chi_lmer)) # not normally distributed (even after log transformation)
-shapiro.test(residuals(Chi_lmer)) # p value less than 0.05
+shapiro.test(residuals(Chi_lmer)) 
 
+plot(Chi_lmer)
 
-pairs(emmeans(Chi_lmer, ~AMF))
+emmeans(Chi_lmer, pairwise ~ AMF)
 
 ggplot(merge_1, aes(y = chi, x = AMF , color = AMF))+ geom_boxplot()
 
-emmeans(Chi_lmer, pairwise ~  AMF * Nutrient_treatment, adjust = "tukey")
 
 # emmeans for Chi
 
